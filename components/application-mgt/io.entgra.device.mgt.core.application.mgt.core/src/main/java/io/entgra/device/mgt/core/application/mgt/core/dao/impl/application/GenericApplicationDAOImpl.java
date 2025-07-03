@@ -2096,4 +2096,110 @@ public class GenericApplicationDAOImpl extends AbstractDAOImpl implements Applic
         return releaseVersionInfos;
     }
 
+    @Override
+    public ApplicationDTO getApplicationForModel(int firmwareModelId, int tenantId) throws ApplicationManagementDAOException {
+        String sql = "SELECT "
+                + "AP.ID AS APP_ID, "
+                + "AP.NAME AS APP_NAME, "
+                + "AP.DESCRIPTION AS APP_DESCRIPTION, "
+                + "AP.TYPE AS APP_TYPE, "
+                + "AP.STATUS AS APP_STATUS, "
+                + "AP.SUB_TYPE AS APP_SUB_TYPE, "
+                + "AP.CURRENCY AS APP_CURRENCY, "
+                + "AP.RATING AS APP_RATING, "
+                + "AP.DEVICE_TYPE_ID AS APP_DEVICE_TYPE_ID, "
+                + "FROM AP_APP AP "
+                + "INNER JOIN AP_APP_DEVICE_MODEL AD "
+                + "ON AP.ID = AD.APP_ID "
+                + "WHERE AD.FIRMWARE_DEVICE_MODEL_ID = ? "
+                + "AND AP.TENANT_ID = ?";
+        try {
+            Connection conn = this.getDBConnection();
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setInt(1, firmwareModelId);
+                stmt.setInt(2, tenantId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    return DAOUtil.loadApplicationWithoutReleases(rs);
+                }
+            }
+        } catch (DBConnectionException e) {
+            String msg = "Error occurred while obtaining the DB connection to get application for firmware model ID: "
+                    + firmwareModelId;
+            log.error(msg, e);
+            throw new ApplicationManagementDAOException(msg, e);
+        } catch (SQLException e) {
+            String msg = "Error occurred to get application details with firmware model id " + firmwareModelId + " while executing "
+                    + "query. Query: " + sql;
+            log.error(msg, e);
+            throw new ApplicationManagementDAOException(msg, e);
+        } catch (UnexpectedServerErrorException e) {
+            String msg = "Found more than one application for firmware model ID: " + firmwareModelId;
+            log.error(msg, e);
+            throw new ApplicationManagementDAOException(msg, e);
+        }
+    }
+
+    @Override
+    public void addDeviceFirmwareModelMapping(int appId, List<Integer> firmwareModelIds) throws ApplicationManagementDAOException {
+        String sql = "INSERT INTO " +
+                "AP_APP_DEVICE_MODEL (" +
+                "APP_ID, " +
+                "FIRMWARE_DEVICE_MODEL_ID" +
+                ") " +
+                "VALUES (?, ?)";
+        try {
+            Connection connection = this.getDBConnection();
+            try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                for (Integer firmwareModelId : firmwareModelIds) {
+                    preparedStatement.setInt(1, appId);
+                    preparedStatement.setInt(2, firmwareModelId);
+                    preparedStatement.addBatch();
+                }
+                preparedStatement.executeBatch();
+            }
+        } catch (SQLException e) {
+            String msg = "SQL error encountered while adding device firmware model mapping for firmware " +
+                    "model IDs: [" + firmwareModelIds.toString() + "]";
+            log.error(msg, e);
+            throw new ApplicationManagementDAOException(msg, e);
+        } catch (DBConnectionException e) {
+            String msg = "Error occurred while adding device firmware model mapping for firmware " +
+                    "model IDs: [" + firmwareModelIds.toString() + "]. Executed query: " + sql;
+            log.error(msg, e);
+            throw new ApplicationManagementDAOException(msg, e);
+        }
+    }
+
+    @Override
+    public List<Integer> getFirmwareModelIdsForApp(int applicationId) throws ApplicationManagementDAOException {
+        List<Integer> firmwareModelIds = new ArrayList<>();
+        String sql = "SELECT "
+                + "FIRMWARE_DEVICE_MODEL_ID "
+                + "FROM AP_APP_DEVICE_MODEL "
+                + "WHERE APP_ID = ? ";
+        try {
+            Connection conn = this.getDBConnection();
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setInt(1, applicationId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while(rs.next()) {
+                        firmwareModelIds.add(rs.getInt("FIRMWARE_DEVICE_MODEL_ID"));
+                    }
+                }
+            }
+        } catch (DBConnectionException e) {
+            String msg = "Error occurred while obtaining the DB connection to get firmware model IDs for application ID: "
+                    + applicationId;
+            log.error(msg, e);
+            throw new ApplicationManagementDAOException(msg, e);
+        } catch (SQLException e) {
+            String msg = "Error occurred to getting firmware model ID associate with application ID " + applicationId
+                    + " while executing query. Query: " + sql;
+            log.error(msg, e);
+            throw new ApplicationManagementDAOException(msg, e);
+        }
+
+        return firmwareModelIds;
+    }
+
 }
