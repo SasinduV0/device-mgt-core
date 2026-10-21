@@ -1555,7 +1555,7 @@ public class ApplicationManagerImpl implements ApplicationManager {
             throw new BadRequestException(msg);
         }
 
-        if (!type.equals(ApplicationType.ENTERPRISE)) {
+        if (!(type.equals(ApplicationType.ENTERPRISE) || type.equals(ApplicationType.CUSTOM))) {
             int applicationReleaseCount = applicationDTO.getApplicationReleaseDTOs().size();
             if (applicationReleaseCount > 0) {
                 String msg = "Application type of " + applicationDTO.getType() + " can only have one release";
@@ -2410,17 +2410,20 @@ public class ApplicationManagerImpl implements ApplicationManager {
                 log.error(msg);
                 throw new NotFoundException(msg);
             }
+            ApplicationDTO applicationDTO = this.applicationDAO.getAppWithRelatedRelease(releaseUuid, tenantId);
             if (lifecycleStateManager
                     .isValidStateChange(applicationReleaseDTO.getCurrentState(), lifecycleChanger.getAction(), userName,
                             tenantId)) {
-                if (lifecycleStateManager.isInstallableState(lifecycleChanger.getAction()) && applicationReleaseDAO
-                        .hasExistInstallableAppRelease(applicationReleaseDTO.getUuid(),
-                                lifecycleStateManager.getInstallableState(), tenantId)) {
-                    String msg = "Installable application release is already registered for the application. "
-                            + "Therefore it is not permitted to change the lifecycle state from "
-                            + applicationReleaseDTO.getCurrentState() + " to " + lifecycleChanger.getAction();
-                    log.error(msg);
-                    throw new ForbiddenException(msg);
+                if (applicationDTO == null || !ApplicationType.CUSTOM.toString().equalsIgnoreCase(applicationDTO.getType())) {
+                    if (lifecycleStateManager.isInstallableState(lifecycleChanger.getAction()) && applicationReleaseDAO
+                            .hasExistInstallableAppRelease(applicationReleaseDTO.getUuid(),
+                                    lifecycleStateManager.getInstallableState(), tenantId)) {
+                        String msg = "Installable application release is already registered for the application. "
+                                + "Therefore it is not permitted to change the lifecycle state from "
+                                + applicationReleaseDTO.getCurrentState() + " to " + lifecycleChanger.getAction();
+                        log.error(msg);
+                        throw new ForbiddenException(msg);
+                    }
                 }
                 LifecycleState lifecycleState = new LifecycleState();
                 lifecycleState.setCurrentState(lifecycleChanger.getAction());
@@ -2479,17 +2482,20 @@ public class ApplicationManagerImpl implements ApplicationManager {
         }
 
         try{
+            ApplicationDTO applicationDTO = this.applicationDAO.getAppWithRelatedRelease(applicationReleaseDTO.getUuid(), tenantId);
             if (lifecycleStateManager
                     .isValidStateChange(applicationReleaseDTO.getCurrentState(), lifecycleChanger.getAction(), userName,
                             tenantId)) {
-                if (lifecycleStateManager.isInstallableState(lifecycleChanger.getAction()) && applicationReleaseDAO
-                        .hasExistInstallableAppRelease(applicationReleaseDTO.getUuid(),
-                                lifecycleStateManager.getInstallableState(), tenantId)) {
-                    String msg = "Installable application release is already registered for the application. "
-                            + "Therefore it is not permitted to change the lifecycle state from "
-                            + applicationReleaseDTO.getCurrentState() + " to " + lifecycleChanger.getAction();
-                    log.error(msg);
-                    throw new ForbiddenException(msg);
+                if (applicationDTO == null || !ApplicationType.CUSTOM.toString().equalsIgnoreCase(applicationDTO.getType())) {
+                    if (lifecycleStateManager.isInstallableState(lifecycleChanger.getAction()) && applicationReleaseDAO
+                            .hasExistInstallableAppRelease(applicationReleaseDTO.getUuid(),
+                                    lifecycleStateManager.getInstallableState(), tenantId)) {
+                        String msg = "Installable application release is already registered for the application. "
+                                + "Therefore it is not permitted to change the lifecycle state from "
+                                + applicationReleaseDTO.getCurrentState() + " to " + lifecycleChanger.getAction();
+                        log.error(msg);
+                        throw new ForbiddenException(msg);
+                    }
                 }
                 LifecycleState lifecycleState = new LifecycleState();
                 lifecycleState.setCurrentState(lifecycleChanger.getAction());
