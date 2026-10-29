@@ -1176,7 +1176,12 @@ public class SubscriptionManagerImpl implements SubscriptionManager {
                     operation.setType(Operation.Type.PROFILE);
                     CustomApplication customApplication = new CustomApplication();
                     customApplication.setType(application.getType());
-                    customApplication.setUrl(application.getApplicationReleases().get(0).getInstallerPath());
+                    String url = application.getApplicationReleases().get(0).getInstallerPath();
+                    Object isChunkedVal = properties != null ? properties.get("isChunked") : null;
+                    if (isChunkedVal != null && !Boolean.parseBoolean(String.valueOf(isChunkedVal))) {
+                        url += (url != null && url.contains("?") ? "&" : "?") + "isChunked=false";
+                    }
+                    customApplication.setUrl(url);
                     operation.setPayLoad(customApplication.toJSON());
                     return operation;
                 } else {
